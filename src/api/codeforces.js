@@ -61,5 +61,33 @@ export const codeforcesAPI = {
     getUserStatus: async (handle, count = 10) => {
         const url = `https://codeforces.com/api/user.status?handle=${handle}&from=1&count=${count}`;
         return fetchWithCache(url);
+    },
+
+    getUpcomingContests: async () => {
+        const url = `https://codeforces.com/api/contest.list?gym=false`;
+        const contests = await fetchWithCache(url);
+        // Filter for upcoming contests only
+        return contests.filter(c => c.phase === 'BEFORE').sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
+    },
+
+    // Helper to fetch combined activity from multiple users
+    getUsersActivity: async (handles, count = 10) => {
+        if (!handles || handles.length === 0) return [];
+
+        let allActivities = [];
+        for (const handle of handles) {
+            try {
+                const url = `https://codeforces.com/api/user.status?handle=${handle}&from=1&count=${count}`;
+                const status = await fetchWithCache(url);
+                // Tag each status with the handle
+                const tagged = status.map(s => ({ ...s, handle }));
+                allActivities = allActivities.concat(tagged);
+            } catch (e) {
+                console.error(`Failed to fetch activity for ${handle}`, e);
+            }
+        }
+
+        // Sort combined activities by newest first
+        return allActivities.sort((a, b) => b.creationTimeSeconds - a.creationTimeSeconds);
     }
 };

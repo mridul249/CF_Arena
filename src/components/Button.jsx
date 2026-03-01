@@ -38,8 +38,21 @@ export const Button = ({ children, variant = 'primary', className = '', ...props
 
   return (
     <button 
-      style={{ ...baseStyles, ...variants[variant] }}
+      style={{ 
+        ...baseStyles, 
+        ...variants[variant],
+        border: variant === 'outline' ? variants[variant].border : 'border: 1px solid transparent',
+        cursor: 'pointer'
+      }}
       className={`custom-button ${className}`}
+      onMouseEnter={(e) => {
+        if (variant !== 'outline') e.currentTarget.style.filter = 'brightness(1.1)';
+        else e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+      }}
+      onMouseLeave={(e) => {
+        if (variant !== 'outline') e.currentTarget.style.filter = 'none';
+        else e.currentTarget.style.backgroundColor = 'transparent';
+      }}
       {...props}
     >
       {children}

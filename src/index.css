@@ -9,10 +9,14 @@
   --success-color: #22C55E;
   --danger-color: #EF4444;
   --warning-color: #F59E0B;
-  
-  --spacing-unit: 16px;
-  --card-radius: 16px;
+
+  /* Typography */
+  --font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+
+  /* Layout */
   --container-width: 1200px;
+  --card-radius: 16px;
+  --spacing-unit: 16px;
   --navbar-height: 64px;
 }
 
@@ -23,7 +27,8 @@
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  margin: 0;
+  font-family: var(--font-family);
   background-color: var(--background-color);
   color: var(--text-primary);
   min-height: 100vh;
@@ -31,7 +36,12 @@ body {
   overflow-x: hidden;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   color: var(--text-primary);
   font-weight: 600;
 }

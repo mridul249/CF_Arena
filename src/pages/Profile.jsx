@@ -4,6 +4,7 @@ import { Card } from '../components/Card';
 import { Avatar } from '../components/Avatar';
 import { Table } from '../components/Table';
 import { Badge } from '../components/Badge';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 
 const Profile = () => {
   const { user } = useAppContext();
@@ -24,8 +25,36 @@ const Profile = () => {
     Time: sub.time
   }));
 
+  // Analyze tags to build radar chart data
+  const tagCategories = {
+    'Math': ['math', 'number theory', 'combinatorics', 'probabilities', 'geometry'],
+    'DP': ['dp', 'bitmasks'],
+    'Graphs': ['graphs', 'dfs and similar', 'shortest paths', 'trees', 'dsu'],
+    'Data Structures': ['data structures', 'binary search'],
+    'Strings': ['strings', 'string suffix structures'],
+    'Greedy': ['greedy', 'constructive algorithms', 'sortings']
+  };
+
+  const radarData = Object.keys(tagCategories).map(cat => ({
+    subject: cat,
+    A: 0,
+    fullMark: 100
+  }));
+
+  user.recent_submissions.forEach(sub => {
+    if (sub.verdict === 'Accepted' && sub.tags) {
+       sub.tags.forEach(tag => {
+          radarData.forEach(r => {
+            if (tagCategories[r.subject].includes(tag.toLowerCase())) {
+              r.A += 1;
+            }
+          });
+       });
+    }
+  });
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
       
       {/* Bio / Header */}
       <Card style={{ display: 'flex', alignItems: 'center', gap: '2rem', padding: '2.5rem' }}>
@@ -54,15 +83,37 @@ const Profile = () => {
         </Card>
       </div>
 
-      {/* Recent Submissions */}
-      <div>
-        <h3 style={{ marginBottom: '1rem', marginTop: '1rem' }}>Recent Submissions</h3>
-        <Card style={{ padding: 0, overflow: 'hidden' }}>
-          <Table 
-            columns={['Problem', 'Verdict', 'Time']} 
-            data={formattedSubmissions} 
-          />
-        </Card>
+      {/* Secondary Content: Submissions & Radar Chart */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 350px', gap: '1.5rem', alignItems: 'start' }}>
+        
+        {/* Recent Submissions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <h3 style={{ margin: 0 }}>Recent Submissions</h3>
+          <Card style={{ padding: 0, overflow: 'hidden' }}>
+            <Table 
+              columns={['Problem', 'Verdict', 'Time']} 
+              data={formattedSubmissions} 
+            />
+          </Card>
+        </div>
+
+        {/* Strengths Radar */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+           <h3 style={{ margin: 0 }}>Strengths Comparison</h3>
+           <Card style={{ padding: '2rem', height: '350px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+             <div style={{ flex: 1, width: '100%', minHeight: 0 }}>
+               <ResponsiveContainer width="100%" height="100%">
+                 <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                   <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                   <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
+                   <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} stroke="transparent" />
+                   <Radar name={user.name} dataKey="A" stroke="var(--primary-color)" fill="var(--primary-color)" fillOpacity={0.5} />
+                 </RadarChart>
+               </ResponsiveContainer>
+             </div>
+           </Card>
+        </div>
+
       </div>
 
     </div>

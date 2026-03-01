@@ -17,6 +17,10 @@ export const AppProvider = ({ children }) => {
   // Live Leaderboard Data fetched from CF
   const [leaderboard, setLeaderboard] = useState([]);
 
+  // New UI features based on mockups
+  const [upcomingContests, setUpcomingContests] = useState([]);
+  const [socialFeed, setSocialFeed] = useState([]);
+
   // Manually entered Daily Question
   const [dailyQuestion, setDailyQuestion] = useState(() => {
     const saved = localStorage.getItem('cf_daily_question');
@@ -87,6 +91,7 @@ export const AppProvider = ({ children }) => {
         })),
         recent_submissions: status.slice(0, 10).map(s => ({
           problem: s.problem.name,
+          tags: s.problem.tags, // Added for radar chart
           verdict: s.verdict === 'OK' ? 'Accepted' : (s.verdict === 'WRONG_ANSWER' ? 'Wrong Answer' : s.verdict),
           time: new Date(s.creationTimeSeconds * 1000).toLocaleString()
         }))
@@ -111,8 +116,31 @@ export const AppProvider = ({ children }) => {
       }));
       
       setLeaderboard(newLeaderboard);
+      
+      // Fetch social feed for these tracked users
+      const feed = await codeforcesAPI.getUsersActivity(trackedHandles, 5); // 5 submissions per tracked friend
+      // Clean up and format feed
+      const formattedFeed = feed.slice(0, 15).map(s => ({
+        handle: s.handle,
+        problem: s.problem.name,
+        rating: s.problem.rating || 'Unrated',
+        verdict: s.verdict,
+        timeSeconds: s.creationTimeSeconds,
+        contestId: s.problem.contestId
+      }));
+      setSocialFeed(formattedFeed);
+      
     } catch (e) {
-      console.error("Failed to fetch leaderboard", e);
+      console.error("Failed to fetch leaderboard or social feed", e);
+    }
+  };
+
+  const fetchContests = async () => {
+    try {
+      const contests = await codeforcesAPI.getUpcomingContests();
+      setUpcomingContests(contests.slice(0, 3)); // Store next 3
+    } catch (e) {
+      console.error("Failed to fetch contests", e);
     }
   };
 
@@ -120,6 +148,11 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     fetchLeaderboard();
   }, [trackedHandles]);
+
+  // Fetch contests once on mount if user is logged in
+  useEffect(() => {
+    if (activeHandle) fetchContests();
+  }, [activeHandle]);
 
   const login = async (handle) => {
      try {
@@ -145,7 +178,8 @@ export const AppProvider = ({ children }) => {
       dailyQuestion, setDailyQuestion,
       dailyActivity, setDailyActivity,
       leaderboard, setLeaderboard,
-      trackedHandles, setTrackedHandles
+      trackedHandles, setTrackedHandles,
+      upcomingContests, socialFeed
     }}>
       {children}
     </AppContext.Provider>
