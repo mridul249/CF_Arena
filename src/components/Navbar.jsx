@@ -1,9 +1,15 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Trophy } from 'lucide-react';
+import { useAppContext } from '../context/AppContext';
 
 export const Navbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout, user } = useAppContext();
+
+  // If there's no user, we might be on the login page; don't show the nav links
+  if (!user) return null;
 
   const links = [
     { name: 'Dashboard', path: '/dashboard' },
@@ -57,19 +63,24 @@ export const Navbar = () => {
               </Link>
             );
           })}
-          <Link 
-            to="/login"
+          <button 
+            onClick={() => {
+              logout();
+              navigate('/login');
+            }}
             style={{
               padding: '0.5rem 1rem',
               borderRadius: '0.375rem',
               backgroundColor: 'rgba(255, 255, 255, 0.05)',
               color: 'var(--text-secondary)',
               fontSize: '0.9rem',
-              fontWeight: '500'
+              fontWeight: '500',
+              border: 'none',
+              cursor: 'pointer'
             }}
           >
             Logout
-          </Link>
+          </button>
         </div>
       </div>
     </nav>

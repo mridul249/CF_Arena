@@ -1,18 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { codeforcesAPI } from '../api/codeforces';
+import { db } from '../firebase';
+import { collection, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import Cookies from 'js-cookie';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  // Store the logged in user handle. We persist this session.
-  const [activeHandle, setActiveHandle] = useState(() => localStorage.getItem('cf_active_handle') || null);
+  // Store the logged in user handle using Cookies.
+  const [activeHandle, setActiveHandle] = useState(() => Cookies.get('cf_active_handle') || null);
   const [userProfile, setUserProfile] = useState(null);
   
-  // Tracked users on the leaderboard.
-  const [trackedHandles, setTrackedHandles] = useState(() => {
-    const saved = localStorage.getItem('cf_tracked_handles');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Tracked users on the leaderboard (synced from Firestore)
+  const [trackedHandles, setTrackedHandles] = useState([]);
   
   // Live Leaderboard Data fetched from CF
   const [leaderboard, setLeaderboard] = useState([]);
@@ -21,50 +21,68 @@ export const AppProvider = ({ children }) => {
   const [upcomingContests, setUpcomingContests] = useState([]);
   const [socialFeed, setSocialFeed] = useState([]);
 
-  // Manually entered Daily Question
-  const [dailyQuestion, setDailyQuestion] = useState(() => {
-    const saved = localStorage.getItem('cf_daily_question');
-    return saved ? JSON.parse(saved) : {
-      name: 'No Question Set',
-      difficulty: 'N/A',
-      tags: [],
-      link: '#'
-    };
+  // Manually entered Daily Question (synced from Firestore)
+  const [dailyQuestion, setDailyQuestionState] = useState({
+    name: 'Loading...',
+    difficulty: 'N/A',
+    tags: [],
+    link: '#'
   });
 
-  const [dailyActivity, setDailyActivity] = useState(() => {
-    const saved = localStorage.getItem('cf_daily_activity');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [dailyActivity, setDailyActivityState] = useState([]);
+
+  // Sync Global Data from Firestore
+  useEffect(() => {
+    // Listen to all registered users for the global leaderboard
+    const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const handles = snapshot.docs.map(doc => doc.id);
+      setTrackedHandles(handles);
+    });
+
+    // Listen to daily question
+    const unsubscribeDQ = onSnapshot(doc(db, 'app_settings', 'daily_question'), (docSnap) => {
+      if (docSnap.exists()) {
+        setDailyQuestionState(docSnap.data());
+      } else {
+        setDailyQuestionState({ name: 'No Question Set', difficulty: 'N/A', tags: [], link: '#' });
+      }
+    });
+
+    // Listen to daily activity
+    const unsubscribeActivity = onSnapshot(doc(db, 'app_settings', 'daily_activity'), (docSnap) => {
+      if (docSnap.exists()) {
+        setDailyActivityState(docSnap.data().activity || []);
+      } else {
+        setDailyActivityState([]);
+      }
+    });
+
+    return () => {
+      unsubscribeUsers();
+      unsubscribeDQ();
+      unsubscribeActivity();
+    };
+  }, []);
+
+  // Wrappers to update Firestore instead of just local state
+  const setDailyQuestion = async (newQuestion) => {
+    await setDoc(doc(db, 'app_settings', 'daily_question'), newQuestion);
+  };
+
+  const setDailyActivity = async (newActivity) => {
+    await setDoc(doc(db, 'app_settings', 'daily_activity'), { activity: newActivity });
+  };
 
   // Watch for handle change, fetch profile if logged in
   useEffect(() => {
     if (activeHandle) {
-      localStorage.setItem('cf_active_handle', activeHandle);
-      
-      // Auto-add the logged-in user to tracked users if not present
-      if (!trackedHandles.includes(activeHandle.toLowerCase())) {
-         const newTracked = [...trackedHandles, activeHandle.toLowerCase()];
-         setTrackedHandles(newTracked);
-         localStorage.setItem('cf_tracked_handles', JSON.stringify(newTracked));
-      }
-
+      Cookies.set('cf_active_handle', activeHandle, { expires: 7 }); // Cookie expires in 7 days
       fetchUserProfile(activeHandle);
     } else {
-      localStorage.removeItem('cf_active_handle');
+      Cookies.remove('cf_active_handle');
       setUserProfile(null);
     }
   }, [activeHandle]);
-
-  // Save daily question
-  useEffect(() => {
-    localStorage.setItem('cf_daily_question', JSON.stringify(dailyQuestion));
-  }, [dailyQuestion]);
-
-  // Save daily activity
-  useEffect(() => {
-    localStorage.setItem('cf_daily_activity', JSON.stringify(dailyActivity));
-  }, [dailyActivity]);
 
   const fetchUserProfile = async (handle) => {
     try {
@@ -159,6 +177,13 @@ export const AppProvider = ({ children }) => {
        // Just verify it exists
        await codeforcesAPI.getUserInfo(handle);
        setActiveHandle(handle);
+       
+       // Add to Firestore so everyone tracks them on the global leaderboard
+       await setDoc(doc(db, 'users', handle.toLowerCase()), { 
+          handle: handle,
+          joinedAt: new Date().toISOString()
+       }, { merge: true });
+
        return true;
      } catch (e) {
        console.error(e);

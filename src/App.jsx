@@ -8,6 +8,8 @@ import Dashboard from './pages/Dashboard';
 import DailyQuestion from './pages/DailyQuestion';
 import Leaderboard from './pages/Leaderboard';
 import Profile from './pages/Profile';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import Cookies from 'js-cookie';
 
 function App() {
   return (
@@ -20,12 +22,32 @@ function App() {
         padding: '2rem 1rem',
       }}>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/daily" element={<DailyQuestion />} />
-          <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/profile" element={<Profile />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/login" element={
+             Cookies.get('cf_active_handle') ? <Navigate to="/dashboard" replace /> : <Login />
+          } />
+          
+          {/* Protected Routes */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/daily" element={
+            <ProtectedRoute>
+              <DailyQuestion />
+            </ProtectedRoute>
+          } />
+          <Route path="/leaderboard" element={
+            <ProtectedRoute>
+              <Leaderboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
         </Routes>
       </main>
     </>
